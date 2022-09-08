@@ -8,6 +8,7 @@ use App\Course;
 use App\Lesson;
 use App\Question;
 use App\User;
+use App\UserAnswer;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -120,6 +121,12 @@ class ApiController extends Controller
             $lesson->complete = $complete;
         }
         return response()->json($user);
+    }
+
+    public function resetUserLesson(Request $request) {
+        $questions = Question::where('lesson_id', $request['lesson_id'])->pluck('id');
+        UserAnswer::where('user_id', $request['user_id'])->whereIn('question_id', $questions)->delete();
+        return response()->json('ok');
     }
 
     public function changeUserStatus(Request $request)
