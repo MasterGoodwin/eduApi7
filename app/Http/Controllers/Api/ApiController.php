@@ -311,8 +311,8 @@ class ApiController extends Controller
     public function getLesson(Request $request)
     {
         $lesson = Lesson::where('id', $request['id'])->with('groups')->first();
-        if (!empty($lesson->start)) $lesson->start = Carbon::createFromFormat('Y-m-d H:i:s', $lesson->start)->format('d.m.Y H:i');
-        if (!empty($lesson->end)) $lesson->end = Carbon::createFromFormat('Y-m-d H:i:s', $lesson->end)->format('d.m.Y H:i');
+      /*   if (!empty($lesson->start)) $lesson->start = Carbon::createFromFormat('Y-m-d H:i:s', $lesson->start)->format('d.m.Y H:i');
+        if (!empty($lesson->end)) $lesson->end = Carbon::createFromFormat('Y-m-d H:i:s', $lesson->end)->format('d.m.Y H:i'); */
         return response()->json([
             'lesson' => $lesson,
             'course_id' => DB::table('course_lessons')->where('lesson_id', $lesson->id)->value('course_id')
@@ -329,8 +329,10 @@ class ApiController extends Controller
                 'comments' => $lesson['comments'],
                 'result_type' => $lesson['result_type'],
 //                'type' => $lesson['type'],
-                'start' => !empty($lesson['start']) ? Carbon::createFromFormat('d.m.Y H:i', $lesson['start']) : null,
-                'end' => !empty($lesson['end']) ? Carbon::createFromFormat('d.m.Y H:i', $lesson['end']) : null,
+                'start' => $lesson['start'],
+                'end' => $lesson['end'],
+                /* 'start' => !empty($lesson['start']) ? Carbon::createFromFormat('d.m.Y H:i', $lesson['start']) : null,
+                'end' => !empty($lesson['end']) ? Carbon::createFromFormat('d.m.Y H:i', $lesson['end']) : null, */
                 'created_at' => Carbon::now(),
             ]);
 
@@ -359,8 +361,10 @@ class ApiController extends Controller
             'comments' => $lesson['comments'],
             'result_type' => $lesson['result_type'],
 //            'type' => $lesson['type'],
-            'start' => !empty($lesson['start']) ? Carbon::createFromFormat('d.m.Y H:i', $lesson['start']) : null,
-            'end' => !empty($lesson['end']) ? Carbon::createFromFormat('d.m.Y H:i', $lesson['end']) : null
+            'start' =>$lesson['start'],
+            'end' =>$lesson['end'],
+            //'start' => !empty($lesson['start']) ? Carbon::createFromFormat('d.m.Y', $lesson['start']) : null,
+            //'end' => !empty($lesson['end']) ? Carbon::createFromFormat('d.m.Y', $lesson['end']) : null
         ]);
         DB::table('lesson_groups')->where('lesson_id', $lesson['id'])->delete();
         foreach ($lesson['groups'] as $item) {
