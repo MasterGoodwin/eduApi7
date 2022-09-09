@@ -34,6 +34,11 @@ Route::namespace('Api')->group(function () {
         Route::any('/resetUserLesson', 'ApiController@resetUserLesson');
         Route::any('/changeUserStatus', 'ApiController@changeUserStatus');
 
+        Route::any('/getUserGroup', 'ApiController@getUserGroup');
+        Route::any('/addUserGroup', 'ApiController@addUserGroup');
+        Route::any('/postUserGroup', 'ApiController@postUserGroup');
+        Route::any('/deleteUserGroup', 'ApiController@deleteUserGroup');
+
         Route::any('/getCategories', 'ApiController@getCategories');
         Route::any('/addCategory', 'ApiController@addCategory');
         Route::any('/getCategory', 'ApiController@getCategory');

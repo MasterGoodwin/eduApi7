@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Category;
 use App\Course;
+use App\Group;
 use App\Lesson;
 use App\Question;
 use App\User;
@@ -27,7 +28,28 @@ class ApiController extends Controller
 
     public function getUserGroups()
     {
-        return response()->json(DB::table('groups')->get());
+        return response()->json(Group::get());
+    }
+
+    public function getUserGroup(Request $request){
+        return response()->json(Group::where('id', $request['id'])->first());
+    }
+
+    public function addUserGroup(Request $request) {
+        Group::insert(['name' => $request['name']]);
+    }
+
+    public function postUserGroup(Request $request) {
+        Group::where('id', $request['id'])->update(['name' => $request['name']]);
+        return response()->json('ok');
+    }
+
+    public function deleteUserGroup(Request $request) {
+        DB::transaction(function () use ($request) {
+            Group::where('id', $request['id'])->delete();
+            DB::table('group_users')->where('group_id', $request['id'])->delete();
+        });
+        return response()->json('ok');
     }
 
 
