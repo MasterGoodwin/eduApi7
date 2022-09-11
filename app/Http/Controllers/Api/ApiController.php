@@ -13,6 +13,7 @@ use App\UserAnswer;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Intervention\Image\Facades\Image as Img;
 use function now;
@@ -31,20 +32,24 @@ class ApiController extends Controller
         return response()->json(Group::get());
     }
 
-    public function getUserGroup(Request $request){
+    public function getUserGroup(Request $request)
+    {
         return response()->json(Group::where('id', $request['id'])->first());
     }
 
-    public function addUserGroup(Request $request) {
+    public function addUserGroup(Request $request)
+    {
         Group::insert(['name' => $request['name']]);
     }
 
-    public function postUserGroup(Request $request) {
+    public function postUserGroup(Request $request)
+    {
         Group::where('id', $request['id'])->update(['name' => $request['name']]);
         return response()->json('ok');
     }
 
-    public function deleteUserGroup(Request $request) {
+    public function deleteUserGroup(Request $request)
+    {
         DB::transaction(function () use ($request) {
             Group::where('id', $request['id'])->delete();
             DB::table('group_users')->where('group_id', $request['id'])->delete();
@@ -80,72 +85,83 @@ class ApiController extends Controller
     public function getUser(Request $request)
     {
         $user = User::with(['groups', 'roles'])->find($request->id);
-
         $userGroups = DB::table('group_users')->where('user_id', $request->id)->pluck('group_id');
-        $userLessons = DB::table('lesson_groups')->whereIn('group_id', $userGroups)->pluck('lesson_id');
-        $user->lessons = DB::table('lessons')
-            ->whereIn('lessons.id', $userLessons)
-            ->get();
-        foreach ($user->lessons as $lesson) {
-            $complete = true;
-            $questions = DB::table('questions')->where('lesson_id', $lesson->id)->get();
-            if (!count($questions)) $complete = false;
-            $right_answers = 0;
-            foreach ($questions as $question) {
-                $user_answers = DB::table('user_answers')
-                    ->where('user_id', $request->id)
-                    ->where('question_id', $question->id)->get();
-                if (!count($user_answers)) $complete = false;
-                $question->user_answers = $user_answers;
+        $userCourses = DB::table('course_groups')->whereIn('group_id', $userGroups)->distinct()->pluck('course_id');
+        $userLessons = [];
+        foreach ($userCourses as $userCourse) {
+            $course = DB::table('courses')->where('id', $userCourse)->first();
+            $lessons = DB::table('lessons')
+                ->whereIn('lessons.id',
+                    DB::table('course_lessons')
+                        ->where('course_id', $userCourse)->pluck('lesson_id')
+                )
+                ->get();
 
-                if ($question->type === 1) {
-                    $user_answer = DB::table('user_answers')
-                        ->where('user_id', $request->id)
-                        ->where('question_id', $question->id)->value('answer_id');
-                    if (DB::table('answers')
-                            ->where('id', $user_answer)->value('right') === 1) $right_answers++;
-                }
-
-                if ($question->type === 2) {
-                    $right = true;
-                    $user_answer = DB::table('user_answers')
+            foreach ($lessons as $lesson) {
+                $lesson->course = $course->name;
+                $complete = true;
+                $questions = DB::table('questions')->where('lesson_id', $lesson->id)->get();
+                if (!count($questions)) $complete = false;
+                $right_answers = 0;
+                foreach ($questions as $question) {
+                    $user_answers = DB::table('user_answers')
                         ->where('user_id', $request->id)
                         ->where('question_id', $question->id)->get();
-                    $question_right_answer = DB::table('answers')
-                        ->where('question_id', $question->id)
-                        ->where('right', 1)->get();
-                    if (count($user_answer) !== count($question_right_answer)) $right = false;
-                    foreach ($user_answer as $item) {
+                    if (!count($user_answers)) $complete = false;
+                    $question->user_answers = $user_answers;
+
+                    if ($question->type === 1) {
+                        $user_answer = DB::table('user_answers')
+                            ->where('user_id', $request->id)
+                            ->where('question_id', $question->id)->value('answer_id');
                         if (DB::table('answers')
-                                ->where('id', $item->answer_id)->first()->right === 0) $right = false;
-
+                                ->where('id', $user_answer)->value('right') === 1) $right_answers++;
                     }
-                    if ($right) $right_answers++;
-                }
 
-                if ($question->type === 3) {
-                    $user_answer = DB::table('user_answers')
-                        ->where('user_id', $request->id)
-                        ->where('question_id', $question->id)->value('answer');
-                    if (!empty($user_answer)) $right_answers++;
-                }
-            }
-            if ($complete) {
-                $lesson->right_answers = $right_answers / count($questions) * 100;
-                $lesson->right_answers_count = $right_answers;
-                $lesson->questions_count = count($questions);
+                    if ($question->type === 2) {
+                        $right = true;
+                        $user_answer = DB::table('user_answers')
+                            ->where('user_id', $request->id)
+                            ->where('question_id', $question->id)->get();
+                        $question_right_answer = DB::table('answers')
+                            ->where('question_id', $question->id)
+                            ->where('right', 1)->get();
+                        if (count($user_answer) !== count($question_right_answer)) $right = false;
+                        foreach ($user_answer as $item) {
+                            if (DB::table('answers')
+                                    ->where('id', $item->answer_id)->first()->right === 0) $right = false;
 
-            } else {
-                $lesson->right_answers = 0;
-                $lesson->right_answers_count = 0;
-                $lesson->questions_count = count($questions);
+                        }
+                        if ($right) $right_answers++;
+                    }
+
+                    if ($question->type === 3) {
+                        $user_answer = DB::table('user_answers')
+                            ->where('user_id', $request->id)
+                            ->where('question_id', $question->id)->value('answer');
+                        if (!empty($user_answer)) $right_answers++;
+                    }
+                }
+                if ($complete) {
+                    $lesson->right_answers = $right_answers / count($questions) * 100;
+                    $lesson->right_answers_count = $right_answers;
+                    $lesson->questions_count = count($questions);
+
+                } else {
+                    $lesson->right_answers = 0;
+                    $lesson->right_answers_count = 0;
+                    $lesson->questions_count = count($questions);
+                }
+                $lesson->complete = $complete;
+                $userLessons[] = $lesson;
             }
-            $lesson->complete = $complete;
         }
+        $user->lessons = $userLessons;
         return response()->json($user);
     }
 
-    public function resetUserLesson(Request $request) {
+    public function resetUserLesson(Request $request)
+    {
         $questions = Question::where('lesson_id', $request['lesson_id'])->pluck('id');
         UserAnswer::where('user_id', $request['user_id'])->whereIn('question_id', $questions)->delete();
         return response()->json('ok');
@@ -219,7 +235,20 @@ class ApiController extends Controller
 
     public function getCourses(Request $request)
     {
-        $courses = Course::where('category_id', $request['category_id'])->get();
+        $userGroups = DB::table('group_users')->where('user_id', $request->user()->id)->pluck('group_id');
+        $userCourses = DB::table('course_groups')->whereIn('group_id', $userGroups)->pluck('course_id');
+        $isAdmin = DB::table('user_roles')
+            ->where('user_id', $request->user()->id)
+            ->where('role_id', 9)->exists();
+
+        if ($isAdmin) {
+            $courses = Course::where('category_id', $request['category_id'])->get();
+        } else {
+            $courses = Course::where('category_id', $request['category_id'])
+                ->whereIn('id', $userCourses)
+                ->get();
+        }
+
         foreach ($courses as $course) {
             $questions = DB::table('questions')->select('questions.id')
                 ->join('lessons', 'lessons.id', '=', 'questions.lesson_id')
@@ -239,18 +268,28 @@ class ApiController extends Controller
 
     public function getCourse(Request $request)
     {
-        $course = Course::where('id', $request['id'])->first();
+        $course = Course::where('id', $request['id'])->with('groups')->first();
         return response()->json($course);
     }
 
     public function addCourse(Request $request)
     {
-        Course::insert([
+        $course = Course::create([
             'name' => $request['name'],
             'category_id' => $request['category_id'],
             'type' => $request['type'],
+            'score' => $request['type'] === 2 ? $request['score'] : 0,
             'created_at' => Carbon::now(),
         ]);
+
+        foreach ($request['groups'] as $item) {
+            DB::table('course_groups')->insert([
+                'course_id' => $course->id,
+                'group_id' => $item['id']
+            ]);
+        }
+
+
         return response()->json('ok');
     }
 
@@ -260,7 +299,17 @@ class ApiController extends Controller
             'name' => $request['name'],
             'category_id' => $request['category_id'],
             'type' => $request['type'],
+            'score' => $request['type'] === 2 ? $request['score'] : 0,
         ]);
+
+        DB::table('course_groups')->where('course_id', $request['id'])->delete();
+        foreach ($request['groups'] as $item) {
+            DB::table('course_groups')->insert([
+                'course_id' => $request['id'],
+                'group_id' => $item['id']
+            ]);
+        }
+
         return response()->json('ok');
     }
 
@@ -273,46 +322,114 @@ class ApiController extends Controller
 
     public function getLessons(Request $request)
     {
-        $category_id = DB::table('courses')->where('id', $request['course_id'])->value('category_id');
         $isAdmin = DB::table('user_roles')
             ->where('user_id', $request->user()->id)
             ->where('role_id', 9)->exists();
 
-        if (!$isAdmin) {
-            $userGroups = DB::table('group_users')->where('user_id', $request->user()->id)->pluck('group_id');
-            $userLessons = DB::table('lesson_groups')->whereIn('group_id', $userGroups)->pluck('lesson_id');
-            $lessons = DB::table('lessons')
-                ->leftJoin('course_lessons', 'course_lessons.lesson_id', '=', 'lessons.id')
-                ->where('course_lessons.course_id', $request['course_id'])
-                ->whereIn('lessons.id', $userLessons)
-                ->get();
-        } else {
-            $lessons = DB::table('lessons')
-                ->leftJoin('course_lessons', 'course_lessons.lesson_id', '=', 'lessons.id')
-                ->where('course_lessons.course_id', $request['course_id'])
-                ->get();
-        }
+        $course = DB::table('courses')->where('id', $request['course_id'])->first();
 
-        foreach ($lessons as $lesson) {
+        $lessons = DB::table('lessons')
+            ->leftJoin('course_lessons', 'course_lessons.lesson_id', '=', 'lessons.id')
+            ->where('course_lessons.course_id', $request['course_id'])
+            ->get();
+
+        $resultLessons = [];
+
+        foreach ($lessons as $key => $lesson) {
             $complete = true;
             $questions = DB::table('questions')->where('lesson_id', $lesson->id)->get();
             if (!count($questions)) $complete = false;
+            $right_answers = 0;
             foreach ($questions as $question) {
-                $answers = DB::table('user_answers')
+                $user_answers = DB::table('user_answers')
                     ->where('user_id', $request->user()->id)
                     ->where('question_id', $question->id)->get();
-                if (!count($answers)) $complete = false;
+                if (!count($user_answers)) $complete = false;
+                $question->user_answers = $user_answers;
+
+                if ($question->type === 1) {
+                    $user_answer = DB::table('user_answers')
+                        ->where('user_id', $request->user()->id)
+                        ->where('question_id', $question->id)->value('answer_id');
+                    if (DB::table('answers')
+                            ->where('id', $user_answer)->value('right') === 1) $right_answers++;
+                }
+
+                if ($question->type === 2) {
+                    $right = true;
+                    $user_answer = DB::table('user_answers')
+                        ->where('user_id', $request->user()->id)
+                        ->where('question_id', $question->id)->get();
+                    $question_right_answer = DB::table('answers')
+                        ->where('question_id', $question->id)
+                        ->where('right', 1)->get();
+                    if (count($user_answer) !== count($question_right_answer)) $right = false;
+                    foreach ($user_answer as $item) {
+                        if (DB::table('answers')
+                                ->where('id', $item->answer_id)->first()->right === 0) $right = false;
+
+                    }
+                    if ($right) $right_answers++;
+                }
+
+                if ($question->type === 3) {
+                    $user_answer = DB::table('user_answers')
+                        ->where('user_id', $request->user()->id)
+                        ->where('question_id', $question->id)->value('answer');
+                    if (!empty($user_answer)) $right_answers++;
+                }
             }
             $lesson->complete = $complete;
+
+            if ($course->type === 1) {
+                $resultLessons[] = $lesson;
+            } else {
+
+                if ($key === 0) {
+                    $resultLessons[] = $lesson;
+                } else {
+                    if (isset($lastLessonComplete) && $lastLessonComplete) {
+                        $resultLessons[] = $lesson;
+                    } else {
+                        break;
+                    }
+                }
+                if ($complete) {
+                    $score = $right_answers / count($questions) * 100;
+                    $lastLessonComplete = $score >= $course->score;
+                } else {
+                    $lastLessonComplete = false;
+                }
+            }
+
         }
-        return response()->json(['lessons' => $lessons, 'category_id' => $category_id]);
+
+//        $lessons = DB::table('lessons')
+//            ->leftJoin('course_lessons', 'course_lessons.lesson_id', '=', 'lessons.id')
+//            ->where('course_lessons.course_id', $request['course_id'])
+//            ->get();
+//
+//        foreach ($lessons as $lesson) {
+//            $complete = true;
+//            $questions = DB::table('questions')->where('lesson_id', $lesson->id)->get();
+//            if (!count($questions)) $complete = false;
+//            foreach ($questions as $question) {
+//                $answers = DB::table('user_answers')
+//                    ->where('user_id', $request->user()->id)
+//                    ->where('question_id', $question->id)->get();
+//                if (!count($answers)) $complete = false;
+//            }
+//            $lesson->complete = $complete;
+//        }
+        return response()->json(['lessons' => $isAdmin ? $lessons : $resultLessons, 'category_id' => $course->category_id]);
+//        return response()->json(['lessons' => $lessons, 'category_id' => $course->category_id]);
     }
 
     public function getLesson(Request $request)
     {
         $lesson = Lesson::where('id', $request['id'])->with('groups')->first();
-      /*   if (!empty($lesson->start)) $lesson->start = Carbon::createFromFormat('Y-m-d H:i:s', $lesson->start)->format('d.m.Y H:i');
-        if (!empty($lesson->end)) $lesson->end = Carbon::createFromFormat('Y-m-d H:i:s', $lesson->end)->format('d.m.Y H:i'); */
+        /*   if (!empty($lesson->start)) $lesson->start = Carbon::createFromFormat('Y-m-d H:i:s', $lesson->start)->format('d.m.Y H:i');
+          if (!empty($lesson->end)) $lesson->end = Carbon::createFromFormat('Y-m-d H:i:s', $lesson->end)->format('d.m.Y H:i'); */
         return response()->json([
             'lesson' => $lesson,
             'course_id' => DB::table('course_lessons')->where('lesson_id', $lesson->id)->value('course_id')
@@ -342,12 +459,12 @@ class ApiController extends Controller
             ]);
 
 
-            foreach ($lesson['groups'] as $item) {
-                DB::table('lesson_groups')->insert([
-                    'lesson_id' => $lessonId,
-                    'group_id' => $item['id']
-                ]);
-            }
+//            foreach ($lesson['groups'] as $item) {
+//                DB::table('lesson_groups')->insert([
+//                    'lesson_id' => $lessonId,
+//                    'group_id' => $item['id']
+//                ]);
+//            }
         });
         return response()->json('ok');
     }
@@ -361,18 +478,18 @@ class ApiController extends Controller
             'comments' => $lesson['comments'],
             'result_type' => $lesson['result_type'],
 //            'type' => $lesson['type'],
-            'start' =>$lesson['start'],
-            'end' =>$lesson['end'],
+            'start' => $lesson['start'],
+            'end' => $lesson['end'],
             //'start' => !empty($lesson['start']) ? Carbon::createFromFormat('d.m.Y', $lesson['start']) : null,
             //'end' => !empty($lesson['end']) ? Carbon::createFromFormat('d.m.Y', $lesson['end']) : null
         ]);
-        DB::table('lesson_groups')->where('lesson_id', $lesson['id'])->delete();
-        foreach ($lesson['groups'] as $item) {
-            DB::table('lesson_groups')->insert([
-                'lesson_id' => $lesson['id'],
-                'group_id' => $item['id']
-            ]);
-        }
+//        DB::table('lesson_groups')->where('lesson_id', $lesson['id'])->delete();
+//        foreach ($lesson['groups'] as $item) {
+//            DB::table('lesson_groups')->insert([
+//                'lesson_id' => $lesson['id'],
+//                'group_id' => $item['id']
+//            ]);
+//        }
 
         return response()->json('ok');
     }
