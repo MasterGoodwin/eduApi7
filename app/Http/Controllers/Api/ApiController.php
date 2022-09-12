@@ -534,7 +534,9 @@ class ApiController extends Controller
 
     public function getStudentQuestions(Request $request)
     {
+        $complete = true;
         $questions = Question::where('lesson_id', $request['lesson_id'])->get();
+        if (!count($questions)) $complete = false;
         foreach ($questions as $question) {
             if ($question->type === 1) {
                 $question->user_answer = null;
@@ -545,9 +547,15 @@ class ApiController extends Controller
             }
             $question->answers = DB::table('answers')->select(['id', 'question_id', 'order', 'answer', 'comment'])
                 ->where('question_id', $question['id'])->get();
+
+            $answers = DB::table('user_answers')
+                ->where('user_id', $request->user()->id)
+                ->where('question_id', $question->id)->get();
+            if (!count($answers)) $complete = false;
+
         }
 
-        return response()->json($questions);
+        return response()->json(['questions' => $questions, 'complete' => $complete]);
     }
 
     public function getQuestionAnswers(Request $request)
