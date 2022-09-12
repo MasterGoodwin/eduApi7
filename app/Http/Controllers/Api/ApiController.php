@@ -400,6 +400,7 @@ class ApiController extends Controller
                 } else {
                     $lastLessonComplete = false;
                 }
+                $lesson->complete_right = $lastLessonComplete;
             }
 
         }
@@ -421,7 +422,11 @@ class ApiController extends Controller
 //            }
 //            $lesson->complete = $complete;
 //        }
-        return response()->json(['lessons' => $isAdmin ? $lessons : $resultLessons, 'category_id' => $course->category_id]);
+        return response()->json([
+            'lessons' => $isAdmin ? $lessons : $resultLessons,
+            'lessons_count' => count($lessons),
+            'category_id' => $course->category_id,
+        ]);
 //        return response()->json(['lessons' => $lessons, 'category_id' => $course->category_id]);
     }
 
