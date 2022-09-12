@@ -21,13 +21,15 @@ Route::middleware('auth:sanctum')->get('/auth/user', function (Request $request)
     return \App\User::with(['roles', 'groups'])->find($request->user()->id);
 });
 
+Route::middleware('auth:sanctum')->group(function () {
+    Route::any('/auth/logout', 'AuthController@logout'); 
+});
 Route::namespace('Api')->group(function () {
     Route::any('/getCities', 'ApiController@getCities');
     Route::any('/getUserGroups', 'ApiController@getUserGroups');
     Route::any('/uploadCKEditorImage',  'ApiController@uploadCKEditorImage');
 
     Route::middleware('auth:sanctum')->group(function () {
-        Route::any('/auth/logout', 'AuthController@logout');
 
         Route::any('/getUsers', 'ApiController@getUsers');
         Route::any('/getUser', 'ApiController@getUser');
