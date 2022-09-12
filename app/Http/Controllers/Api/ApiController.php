@@ -430,6 +430,18 @@ class ApiController extends Controller
         $lesson = Lesson::where('id', $request['id'])->with('groups')->first();
         /*   if (!empty($lesson->start)) $lesson->start = Carbon::createFromFormat('Y-m-d H:i:s', $lesson->start)->format('d.m.Y H:i');
           if (!empty($lesson->end)) $lesson->end = Carbon::createFromFormat('Y-m-d H:i:s', $lesson->end)->format('d.m.Y H:i'); */
+
+        $complete = true;
+        $questions = DB::table('questions')->where('lesson_id', $lesson->id)->get();
+        if (!count($questions)) $complete = false;
+        foreach ($questions as $question) {
+            $answers = DB::table('user_answers')
+                ->where('user_id', $request->user()->id)
+                ->where('question_id', $question->id)->get();
+            if (!count($answers)) $complete = false;
+        }
+        $lesson->complete = $complete;
+
         return response()->json([
             'lesson' => $lesson,
             'course_id' => DB::table('course_lessons')->where('lesson_id', $lesson->id)->value('course_id')
