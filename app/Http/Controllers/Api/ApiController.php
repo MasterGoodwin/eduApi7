@@ -162,9 +162,15 @@ class ApiController extends Controller
 
     public function resetUserLesson(Request $request)
     {
-        $questions = Question::where('lesson_id', $request['lesson_id'])->pluck('id');
-        UserAnswer::where('user_id', $request['user_id'])->whereIn('question_id', $questions)->delete();
-        return response()->json('ok');
+        $isAdmin = DB::table('user_roles')
+            ->where('user_id', $request->user()->id)
+            ->where('role_id', 9)->exists();
+        $userId = $isAdmin ? $request['user_id'] : $request->user()->id;
+        if($userId) {
+            $questions = Question::where('lesson_id', $request['lesson_id'])->pluck('id');
+            UserAnswer::where('user_id', $userId)->whereIn('question_id', $questions)->delete();
+            return response()->json('ok');
+        }
     }
 
     public function changeUserStatus(Request $request)
