@@ -670,6 +670,9 @@ class ApiController extends Controller
             }
             if (isset($questionId)) {
                 foreach ($question['answers'] as $k => $answer) {
+                    if (isset ($answer['id']) && ($answer['delete']) === true) {
+                        DB::table('answers')->where('id', $answer['id'])->delete();
+                    }
                     if (isset ($answer['id'])) {
                         DB::table('answers')->where('id', $answer['id'])->update([
                             'order' => $k,
@@ -678,7 +681,7 @@ class ApiController extends Controller
                             'right' => $answer['right'],
                         ]);
 
-                    } else {
+                    } elseif(!$answer['delete'] && !$question['delete']) {
                         DB::table('answers')->insert([
                             'question_id' => $questionId,
                             'order' => $k,
