@@ -342,6 +342,8 @@ class ApiController extends Controller
         $resultLessons = [];
 
         foreach ($lessons as $key => $lesson) {
+            if ($lesson->start && Carbon::createFromFormat('Y-m-d H:i:s', $lesson->start)->isFuture()) continue;
+            if ($lesson->end && Carbon::createFromFormat('Y-m-d H:i:s', $lesson->end)->isPast()) continue;
             $complete = true;
             $questions = DB::table('questions')->where('lesson_id', $lesson->id)->get();
             if (!count($questions)) $complete = false;
