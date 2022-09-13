@@ -27,9 +27,14 @@ class ApiController extends Controller
         return response()->json(DB::connection('data')->table('cities')->get());
     }
 
-    public function getUserGroups()
+    public function getUserGroups(Request $request)
     {
-        return response()->json(Group::get());
+        $search = $request['search'];
+        $groups = Group::when($search, function($query, $search) {
+            $query->where('name', 'like', '%' . $search . '%');
+        })
+        ->get();
+        return response()->json($groups);
     }
 
     public function getUserGroup(Request $request)
@@ -209,7 +214,11 @@ class ApiController extends Controller
 
     public function getCategories(Request $request)
     {
-        $categories = Category::get();
+        $search = $request['search'];
+        $categories = Category::when($search, function($query, $search) {
+            $query->where('name', 'like', '%' . $search . '%');
+        })
+        ->get();
         return response()->json($categories);
     }
 
@@ -241,6 +250,7 @@ class ApiController extends Controller
 
     public function getCourses(Request $request)
     {
+        $search = $request['search'];
         $userGroups = DB::table('group_users')->where('user_id', $request->user()->id)->pluck('group_id');
         $userCourses = DB::table('course_groups')->whereIn('group_id', $userGroups)->pluck('course_id');
         $isAdmin = DB::table('user_roles')
@@ -248,10 +258,17 @@ class ApiController extends Controller
             ->where('role_id', 9)->exists();
 
         if ($isAdmin) {
-            $courses = Course::where('category_id', $request['category_id'])->get();
+            
+            $courses = Course::where('category_id', $request['category_id'])
+            ->when($search, function($query, $search) {
+                $query->where('name', 'like', '%' . $search . '%');
+            })->get();
         } else {
             $courses = Course::where('category_id', $request['category_id'])
                 ->whereIn('id', $userCourses)
+                ->when($search, function($query, $search) {
+                    $query->where('name', 'like', '%' . $search . '%');
+                })
                 ->get();
         }
 
@@ -328,6 +345,7 @@ class ApiController extends Controller
 
     public function getLessons(Request $request)
     {
+        $search = $request['search'];
         $isAdmin = DB::table('user_roles')
             ->where('user_id', $request->user()->id)
             ->where('role_id', 9)->exists();
@@ -337,6 +355,9 @@ class ApiController extends Controller
         $lessons = DB::table('lessons')
             ->leftJoin('course_lessons', 'course_lessons.lesson_id', '=', 'lessons.id')
             ->where('course_lessons.course_id', $request['course_id'])
+            ->when($search, function($query, $search) {
+                $query->where('name', 'like', '%' . $search . '%');
+            })
             ->get();
 
         $resultLessons = [];
