@@ -493,9 +493,7 @@ class ApiController extends Controller
                 'result_type' => $lesson['result_type'],
 //                'type' => $lesson['type'],
                 'start' => $lesson['start'],
-                'end' => $lesson['end'],
-                /* 'start' => !empty($lesson['start']) ? Carbon::createFromFormat('d.m.Y H:i', $lesson['start']) : null,
-                'end' => !empty($lesson['end']) ? Carbon::createFromFormat('d.m.Y H:i', $lesson['end']) : null, */
+                'end' => Carbon::createFromFormat('Y-m-d H:i:s', Carbon::parse($lesson['end']))->addDays(1)->subSeconds(1)->format('Y-m-d H:i:s'),
                 'created_at' => Carbon::now(),
             ]);
 
@@ -525,9 +523,7 @@ class ApiController extends Controller
             'result_type' => $lesson['result_type'],
 //            'type' => $lesson['type'],
             'start' => $lesson['start'],
-            'end' => $lesson['end'],
-            //'start' => !empty($lesson['start']) ? Carbon::createFromFormat('d.m.Y', $lesson['start']) : null,
-            //'end' => !empty($lesson['end']) ? Carbon::createFromFormat('d.m.Y', $lesson['end']) : null
+            'end' => Carbon::createFromFormat('Y-m-d H:i:s', Carbon::parse($lesson['end']))->addDays(1)->subSeconds(1)->format('Y-m-d H:i:s'),
         ]);
 //        DB::table('lesson_groups')->where('lesson_id', $lesson['id'])->delete();
 //        foreach ($lesson['groups'] as $item) {
