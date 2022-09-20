@@ -811,24 +811,20 @@ class ApiController extends Controller
         foreach ($files as $file) {
             $ext = strtolower($file->getClientOriginalExtension());
             $originalName = strtolower($file->getClientOriginalName());
-            if (in_array($ext, ['xls', 'xlsx', 'pdf'])) {
-                $hash = md5($file);
-                $fileName = $hash . '.' . $ext;
-                $path = storage_path('app/public/docs/');
-                if (!file_exists($path)) {
-                    mkdir($path, 0777, true);
-                }
-                $destinationPath = storage_path('/app/public/docs/');
-                $file->move($destinationPath, $fileName);
-
-                DB::table('docs')->insert([
-                    'lesson_id' => $lessonId,
-                    'name' => $originalName,
-                    'src_name' => $fileName,
-                ]);
-            } else {
-                return ['hint' => 'Недопустимый формат файла.', 'result' => false,];
+            $hash = md5($file);
+            $fileName = $hash . '.' . $ext;
+            $path = storage_path('app/public/docs/');
+            if (!file_exists($path)) {
+                mkdir($path, 0777, true);
             }
+            $destinationPath = storage_path('/app/public/docs/');
+            $file->move($destinationPath, $fileName);
+
+            DB::table('docs')->insert([
+                'lesson_id' => $lessonId,
+                'name' => $originalName,
+                'src_name' => $fileName,
+            ]);
         }
 
         return response()->json(['result' => true]);
