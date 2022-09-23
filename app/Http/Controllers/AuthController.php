@@ -7,6 +7,8 @@ use App\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
+use App\Mail\UserModeration;
 use function response;
 
 class AuthController extends Controller
@@ -29,6 +31,7 @@ class AuthController extends Controller
                 'email' => $request->get('email'),
                 'password' => md5($request->get('password')),
             ]);
+            $this->sendUserModerationMail($user);
             return response()->json([
                 'result' => true,
                 'message' => 'Пользователь успешно зарегистрирован'
@@ -72,6 +75,7 @@ class AuthController extends Controller
                     'email' => $request->username,
                     'password' => $mcmautoUser->password,
                 ]);
+                $this->sendUserModerationMail($user);
                 return response()->json([
                     'result' => false,
                     'message' => 'Пользователь на модерации'
@@ -102,6 +106,7 @@ class AuthController extends Controller
                             'username1c' => $res->name,
                             'password' => md5($request->get('password')),
                         ]);
+                        $this->sendUserModerationMail($user);
                         return response()->json([
                             'result' => false,
                             'message' => 'Пользователь успешно зарегистрирован'
@@ -136,5 +141,9 @@ class AuthController extends Controller
 
     public function logout(Request $request){
         $request->user()->currentAccessToken()->delete();
+    }
+
+    private static function sendUserModerationMail($user) {
+        Mail::to('anf@wlbs.ru')->send(new UserModeration($user));
     }
 }
