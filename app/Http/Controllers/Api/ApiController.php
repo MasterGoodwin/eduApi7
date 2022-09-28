@@ -79,6 +79,9 @@ class ApiController extends Controller
         if (!empty($request['group'])) {
             $users = $users->where('group_users.group_id', $request['group']);
         }
+        if (!empty($request['city'])) {
+            $users = $users->where('cityId', $request['city']);
+        }
         $users = $users->groupBy('users.id')->get();
         foreach ($users as $user) {
             $user->roles = DB::table('user_roles')->where('user_id', $user->id)->get();
@@ -97,7 +100,7 @@ class ApiController extends Controller
             $course = DB::table('courses')->where('id', $userCourse)->first();
             $lessons = DB::table('lessons')
                 ->select([
-                    'lessons.*', 
+                    'lessons.*',
                     'user_attempts.current_count as current_attempt_count',
                     'user_attempts.total_count as total_attempt_count'
                     ])
@@ -283,7 +286,7 @@ class ApiController extends Controller
             ->where('role_id', 9)->exists();
 
         if ($isAdmin) {
-            
+
             $courses = Course::where('category_id', $request['category_id'])
             ->when($search, function($query, $search) {
                 $query->where('name', 'like', '%' . $search . '%');
@@ -819,8 +822,8 @@ class ApiController extends Controller
             ->where('user_id', $request->user()->id)
             ->where('lesson_id', $request->lesson_id)
             ->update([
-                'current_count' => ++$lessonAttempt->current_count, 
-                'total_count' => ++$lessonAttempt->total_count, 
+                'current_count' => ++$lessonAttempt->current_count,
+                'total_count' => ++$lessonAttempt->total_count,
                 'updated_at' => Carbon::now()
             ]);
         } else {
