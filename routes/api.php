@@ -22,7 +22,7 @@ Route::middleware('auth:sanctum')->get('/auth/user', function (Request $request)
 });
 
 Route::middleware('auth:sanctum')->group(function () {
-    Route::any('/auth/logout', 'AuthController@logout'); 
+    Route::any('/auth/logout', 'AuthController@logout');
 });
 Route::namespace('Api')->group(function () {
     Route::any('/getCities', 'ApiController@getCities');
@@ -71,6 +71,9 @@ Route::namespace('Api')->group(function () {
         Route::any('/saveUserAnswers', 'ApiController@saveUserAnswers');
         Route::any('/getQuestionAnswers', 'ApiController@getQuestionAnswers');
         Route::any('/getTestResult', 'ApiController@getTestResult');
+
+
+        Route::any('/getGroupStatistic', 'ApiController@getGroupStatistic');
 
     });
 });

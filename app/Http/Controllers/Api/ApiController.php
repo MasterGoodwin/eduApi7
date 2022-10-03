@@ -920,4 +920,122 @@ class ApiController extends Controller
         }
         return response()->json('ok');
     }
+
+
+    public function getGroupStatistic(Request $request)
+    {
+        $users = User::whereIn('id', DB::table('group_users')
+                ->where('group_id', $request->id)->pluck('user_id'))->get();
+
+        $groupLessons = [];
+        $stat = [];
+        $scores = [];
+
+        foreach ($users as $user) {
+            $userCourses = DB::table('course_groups')->where('group_id', $request->id)->distinct()->pluck('course_id');
+
+            foreach ($userCourses as $userCourse) {
+                $course = DB::table('courses')->where('id', $userCourse)->first();
+                $lessons = DB::table('lessons')
+                    ->whereIn('lessons.id',
+                        DB::table('course_lessons')
+                            ->where('course_id', $userCourse)->pluck('lesson_id')
+                    )
+                    ->get();
+
+                foreach ($lessons as $lesson) {
+                    $lesson->course = $course->name;
+                    $gKey = array_search($lesson->id, array_column($groupLessons, 'id'));
+                    if ($gKey === false) {
+                        $groupLessons[] = $lesson;
+                        $gKey = count($groupLessons) - 1;
+                    }
+//                    if (!array_key_exists($lesson->id, $groupLessons)) $groupLessons[$lesson->id] = $lesson;
+
+                    if (!array_key_exists($lesson->id, $scores)) $scores[$lesson->id] = [];
+
+                    $sKey = array_search($lesson->id, array_column($stat, 'id'));
+                    if ($sKey === false) {
+                        $stat[] = [
+                            'id' => $lesson->id,
+                            'complete' => 0,
+                            'pass' => 0,
+                            'score' => 0
+                        ];
+                        $sKey = count($stat) - 1;
+                    }
+
+//                    if (!array_key_exists($lesson->id, $stat)) $stat[$lesson->id] = [
+//                        'complete' => 0,
+//                        'pass' => 0,
+//                        'score' => 0
+//                    ];
+                    $complete = true;
+                    $questions = DB::table('questions')->where('lesson_id', $lesson->id)->get();
+                    if (!count($questions)) $complete = false;
+                    $right_answers = 0;
+                    foreach ($questions as $question) {
+                        $user_answers = DB::table('user_answers')
+                            ->where('user_id', $user->id)
+                            ->where('question_id', $question->id)->get();
+                        if (!count($user_answers)) $complete = false;
+
+                        if ($question->type === 1) {
+                            $user_answer = DB::table('user_answers')
+                                ->where('user_id', $user->id)
+                                ->where('question_id', $question->id)->value('answer_id');
+                            if (DB::table('answers')
+                                    ->where('id', $user_answer)->value('right') === 1) $right_answers++;
+                        }
+
+                        if ($question->type === 2) {
+                            $right = true;
+                            $user_answer = DB::table('user_answers')
+                                ->where('user_id', $user->id)
+                                ->where('question_id', $question->id)->get();
+                            $question_right_answer = DB::table('answers')
+                                ->where('question_id', $question->id)
+                                ->where('right', 1)->get();
+                            if (count($user_answer) !== count($question_right_answer)) $right = false;
+                            foreach ($user_answer as $item) {
+                                if (DB::table('answers')
+                                        ->where('id', $item->answer_id)->first()->right === 0) $right = false;
+
+                            }
+                            if ($right) $right_answers++;
+                        }
+
+                        if ($question->type === 3) {
+                            $user_answer = DB::table('user_answers')
+                                ->where('user_id', $user->id)
+                                ->where('question_id', $question->id)->value('answer');
+                            if (!empty($user_answer)) $right_answers++;
+                        }
+                    }
+                    if ($complete) {
+                        $stat[$sKey]['complete']++;
+                    }
+
+                    if ($course->type === 2) {
+                        if ($complete) {
+                            $score = $right_answers / count($questions) * 100;
+                            $scores[$lesson->id][] = $score;
+                            if ($score >= $course->score) $stat[$sKey]['pass']++;
+                        }
+                    }
+                }
+            }
+        }
+        foreach ($scores as $lessonId => $score) {
+            $sKey = array_search($lessonId, array_column($stat, 'id'));
+            if (count($score)) {
+                $stat[$sKey]['score'] = array_sum($score) / count($score);
+            } else {
+                $stat[$sKey]['score'] = 0;
+            }
+        }
+
+        return response()->json(['lessons' => (array) $groupLessons, 'stat' => (array) $stat, 'usersCount' => count($users)]);
+    }
+
 }
