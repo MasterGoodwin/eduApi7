@@ -942,6 +942,9 @@ class ApiController extends Controller
 
             foreach ($userCourses as $userCourse) {
                 $course = DB::table('courses')->where('id', $userCourse)->first();
+                if (!$course) continue;
+                $category = DB::table('categories')->where('id', $course->category_id)->first();
+                if (!$category) continue;
                 $lessons = DB::table('lessons')
                     ->whereIn('lessons.id',
                         DB::table('course_lessons')
