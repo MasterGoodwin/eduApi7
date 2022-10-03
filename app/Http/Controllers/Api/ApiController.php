@@ -332,6 +332,7 @@ class ApiController extends Controller
             'score' => $request['type'] === 2 ? $request['score'] : 0,
             'attempt' => $request['type'] === 2 ? $request['attempt'] : null,
             'created_at' => Carbon::now(),
+            'shuffle' => $request['shuffle']
         ]);
 
         foreach ($request['groups'] as $item) {
@@ -353,6 +354,7 @@ class ApiController extends Controller
             'type' => $request['type'],
             'score' => $request['type'] === 2 ? $request['score'] : 0,
             'attempt' => $request['type'] === 2 ? $request['attempt'] : null,
+            'shuffle' => $request['shuffle']
         ]);
 
         DB::table('course_groups')->where('course_id', $request['id'])->delete();
@@ -604,6 +606,10 @@ class ApiController extends Controller
     {
         $complete = true;
         $questions = Question::where('lesson_id', $request['lesson_id'])->get();
+        $shuffle = DB::table('course_lessons')
+            ->leftJoin('courses', 'courses.id', 'course_lessons.course_id')
+            ->where('lesson_id', $request['lesson_id'])
+            ->value('shuffle');
         if (!count($questions)) $complete = false;
         foreach ($questions as $question) {
             if ($question->type === 1) {
@@ -623,7 +629,7 @@ class ApiController extends Controller
 
         }
 
-        return response()->json(['questions' => $questions, 'complete' => $complete]);
+        return response()->json(['questions' => $questions, 'complete' => $complete, 'shuffle' => $shuffle]);
     }
 
     public function getQuestionAnswers(Request $request)
