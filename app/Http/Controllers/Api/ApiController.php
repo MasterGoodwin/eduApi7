@@ -1057,7 +1057,7 @@ class ApiController extends Controller
         foreach ($scores as $lessonId => $score) {
             $sKey = array_search($lessonId, array_column($stat, 'id'));
             if (count($score)) {
-                $stat[$sKey]['score'] = array_sum($score) / count($score);
+                $stat[$sKey]['score'] = round(array_sum($score) / count($score));
             } else {
                 $stat[$sKey]['score'] = 0;
             }
