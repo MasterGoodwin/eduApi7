@@ -999,7 +999,7 @@ class ApiController extends Controller
                         if (!count($user_answers)) {
                             $complete = false;
                         } else {
-                            $userLessonStat['date'] = $user_answers[0]->created_at;
+                            $userLessonStat['date'] = Carbon::createFromFormat('Y-m-d H:i:s', $user_answers[0]->created_at)->format('d.m.Y');
                         }
 
                         if ($question->type === 1) {
@@ -1043,7 +1043,7 @@ class ApiController extends Controller
                         if ($complete) {
                             $score = $right_answers / count($questions) * 100;
                             $scores[$lesson->id][] = $score;
-                            $userLessonStat['score'] = $score;
+                            $userLessonStat['score'] = round($score);
                             if ($score >= $course->score) {
                                 $stat[$sKey]['pass']++;
                                 $userLessonStat['pass'] = true;
