@@ -953,6 +953,14 @@ class ApiController extends Controller
                     ->get();
 
                 foreach ($lessons as $lesson) {
+                    $userLessonStat = [
+                        'user' => $user,
+                        'complete' => false,
+                        'pass' => false,
+                        'date' => null,
+                        'score' => 0,
+                        'try' => null
+                    ];
                     $lesson->course = $course->name;
                     $gKey = array_search($lesson->id, array_column($groupLessons, 'id'));
                     if ($gKey === false) {
@@ -969,7 +977,8 @@ class ApiController extends Controller
                             'id' => $lesson->id,
                             'complete' => 0,
                             'pass' => 0,
-                            'score' => 0
+                            'score' => 0,
+                            'users' => []
                         ];
                         $sKey = count($stat) - 1;
                     }
@@ -987,7 +996,11 @@ class ApiController extends Controller
                         $user_answers = DB::table('user_answers')
                             ->where('user_id', $user->id)
                             ->where('question_id', $question->id)->get();
-                        if (!count($user_answers)) $complete = false;
+                        if (!count($user_answers)) {
+                            $complete = false;
+                        } else {
+                            $userLessonStat['date'] = $user_answers[0]->created_at;
+                        }
 
                         if ($question->type === 1) {
                             $user_answer = DB::table('user_answers')
@@ -1023,15 +1036,21 @@ class ApiController extends Controller
                     }
                     if ($complete) {
                         $stat[$sKey]['complete']++;
+                        $userLessonStat['complete'] = true;
                     }
 
                     if ($course->type === 2) {
                         if ($complete) {
                             $score = $right_answers / count($questions) * 100;
                             $scores[$lesson->id][] = $score;
-                            if ($score >= $course->score) $stat[$sKey]['pass']++;
+                            $userLessonStat['score'] = $score;
+                            if ($score >= $course->score) {
+                                $stat[$sKey]['pass']++;
+                                $userLessonStat['pass'] = true;
+                            }
                         }
                     }
+                    $stat[$sKey]['users'][] = $userLessonStat;
                 }
             }
         }
