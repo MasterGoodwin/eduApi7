@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Exports\DefaultExport;
 use App\Http\Controllers\Controller;
 use App\Category;
 use App\Course;
@@ -16,6 +17,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Intervention\Image\Facades\Image as Img;
+use Maatwebsite\Excel\Facades\Excel;
 use function now;
 use function response;
 use function storage_path;
@@ -1064,6 +1066,35 @@ class ApiController extends Controller
         }
 
         return response()->json(['lessons' => (array) $groupLessons, 'stat' => (array) $stat, 'usersCount' => count($users)]);
+    }
+
+    public function getGroupStatisticXLS(Request $request, Excel $excel)
+    {
+        $preHeader = ['Кол-во прошло', 'Успешно', 'Ср. балл'];
+        $header = ['Имя', 'email', 'Город', 'Дата', 'Пройден', 'Успешно', 'Оценка'];
+        $items = [];
+
+        foreach ($request->stat['users'] as $item) {
+            $items[] = [
+                $item['user']['username1c'],
+                $item['user']['email'],
+                DB::connection('data')->table('cities')->where('id', $item['user']['cityId'])->value('name'),
+                $item['date'],
+                $item['complete'] ? 'Да' : 'Нет',
+                $item['pass'] ? 'Да' : 'Нет',
+                $item['score'],
+            ];
+        }
+
+        $export = new DefaultExport([
+            [$request->title],
+            $preHeader,
+            [$request->stat['complete'], $request->stat['pass'], $request->stat['score']],
+            $header,
+            $items
+        ]);
+
+        return $excel::download($export, 'stat.xlsx');
     }
 
 }

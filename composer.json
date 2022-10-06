@@ -17,7 +17,8 @@
         "intervention/image": "^2.7",
         "laravel/framework": "^7.29",
         "laravel/sanctum": "^2.15",
-        "laravel/tinker": "^2.5"
+        "laravel/tinker": "^2.5",
+        "maatwebsite/excel": "^3.1"
     },
     "require-dev": {
         "facade/ignition": "^2.0",

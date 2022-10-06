@@ -74,6 +74,7 @@ Route::namespace('Api')->group(function () {
 
 
         Route::any('/getGroupStatistic', 'ApiController@getGroupStatistic');
+        Route::any('/getGroupStatisticXLS', 'ApiController@getGroupStatisticXLS');
 
     });
 });
