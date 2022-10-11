@@ -388,7 +388,7 @@ class ApiController extends Controller
 
         $lessons = DB::table('lessons')
             ->select([
-                'lessons.id as id',
+                'lessons.id as lid',
                 'lessons.*',
                 'course_lessons.*',
                 'user_attempts.current_count as attempt_count'
