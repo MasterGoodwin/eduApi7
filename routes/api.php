@@ -33,6 +33,7 @@ Route::namespace('Api')->group(function () {
 
         Route::any('/getUsers', 'ApiController@getUsers');
         Route::any('/getUser', 'ApiController@getUser');
+        Route::any('/deleteUser', 'ApiController@deleteUser');
         Route::any('/resetUserLesson', 'ApiController@resetUserLesson');
         Route::any('/changeUserStatus', 'ApiController@changeUserStatus');
 

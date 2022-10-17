@@ -189,6 +189,16 @@ class ApiController extends Controller
         return response()->json($user);
     }
 
+    public function deleteUser(Request $request) {
+        $isAdmin = DB::table('user_roles')
+            ->where('user_id', $request->user()->id)
+            ->where('role_id', 9)->exists();
+
+        if ($isAdmin) {
+            User::where('id', $request['user_id'])->delete();
+        }
+    }
+
     public function resetUserLesson(Request $request)
     {
         $isAdmin = DB::table('user_roles')
