@@ -645,6 +645,40 @@ class ApiController extends Controller
         return response()->json(['questions' => $questions, 'complete' => $complete, 'shuffle' => $shuffle]);
     }
 
+    public function getStudentAnswers(Request $request)
+    {
+        $complete = true;
+        $questions = Question::where('lesson_id', $request['lesson_id'])->get();
+        if (!count($questions)) $complete = false;
+        foreach ($questions as $question) {
+            $question->answers = DB::table('answers')
+                ->where('question_id', $question['id'])->get();
+
+            $user_answers = DB::table('user_answers')
+                ->where('user_id', $request['user_id'])
+                ->where('question_id', $question->id)->get();
+            if (count($user_answers)) {
+                if ($question->type === 1) {
+                    $question->user_answer = DB::table('user_answers')
+                    ->where('user_id', $request['user_id'])
+                    ->where('question_id', $question->id)->value('answer_id');
+                } else if ($question->type === 2) {
+                    $question->user_answer = DB::table('user_answers')
+                    ->where('user_id', $request['user_id'])
+                    ->where('question_id', $question->id)->pluck('answer_id');
+                } else if ($question->type === 3) {
+                    $question->user_answer = DB::table('user_answers')
+                    ->where('user_id', $request['user_id'])
+                    ->where('question_id', $question->id)->value('answer');
+                }
+            } else {
+                $complete = false; 
+            }
+        }
+
+        return response()->json(['questions' => $questions, 'complete' => $complete]);
+    }
+
     public function getQuestionAnswers(Request $request)
     {
         $questions = Question::where('lesson_id', $request['lesson_id'])->get();
@@ -664,7 +698,8 @@ class ApiController extends Controller
 
     public function getTestResult(Request $request)
     {
-        $user = User::with(['groups', 'roles'])->find($request->user()->id);
+        $requestUserId = $request['user_id'] ? $request['user_id'] : $request->user()->id;
+        $user = User::with(['groups', 'roles'])->find($requestUserId);
 
         $lesson = DB::table('lessons')
             ->where('id', $request->lesson_id)

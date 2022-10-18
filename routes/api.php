@@ -68,6 +68,7 @@ Route::namespace('Api')->group(function () {
         Route::any('/getStudentQuestions', 'ApiController@getStudentQuestions');
         Route::any('/postQuestions', 'ApiController@postQuestions');
         Route::any('/deleteQuestions', 'ApiController@deleteQuestions');
+        Route::any('/getStudentAnswers', 'ApiController@getStudentAnswers');
 
         Route::any('/saveUserAnswers', 'ApiController@saveUserAnswers');
         Route::any('/getQuestionAnswers', 'ApiController@getQuestionAnswers');
