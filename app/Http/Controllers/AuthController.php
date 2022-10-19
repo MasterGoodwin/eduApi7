@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\UserModeration;
+use App\Mail\UserVerification;
 use function response;
 
 class AuthController extends Controller
@@ -30,11 +31,12 @@ class AuthController extends Controller
             $user = User::create([
                 'email' => $request->get('email'),
                 'password' => md5($request->get('password')),
+                'status' => 99
             ]);
-            $this->sendUserModerationMail($user);
+            $this->sendUserVerificationMail($user);
             return response()->json([
                 'result' => true,
-                'message' => 'Пользователь успешно зарегистрирован'
+                'message' => 'Подтвердите письмо по почте'
             ], 201);
         }
 //        DB::transaction(function () use ($request) {});
@@ -143,11 +145,39 @@ class AuthController extends Controller
         $request->user()->currentAccessToken()->delete();
     }
 
-    private static function sendUserModerationMail($user) {
+    private static function sendUserVerificationMail($user) {
         try {
-            Mail::to('anf@wlbs.ru')->send(new UserModeration($user));
+            Mail::to($user['email'])->send(new UserVerification($user));
         } catch (\Exception $e) {
             Log::error($e->getMessage());
         }
+    }
+
+    private static function sendUserModerationMail($user) {
+        try {
+            Mail::to('kudlaev@wlbs.ru')->send(new UserModeration($user));
+        } catch (\Exception $e) {
+            Log::error($e->getMessage());
+        }
+    }
+
+    public function userVerification(Request $request) {
+        $user = User::where('id', $request['user_id'])->first();
+        $message = '';
+        $toast = 'success';
+        if($user) {
+            if($user['status'] === 99) {
+                $message = 'Учетная запись подтверждена. Ожидайте модерации!';
+                User::where('id', $request['user_id'])->update(['status' => 0]);
+                $this->sendUserModerationMail($user);
+            } else {
+                $toast = 'warning';
+                $message = 'Почта уже активирована';
+            }
+        } else {
+            $toast = 'error';
+            $message = 'Ссылка не действительна';
+        }
+        return response()->json(['toast' => $toast, 'message' => $message]);
     }
 }

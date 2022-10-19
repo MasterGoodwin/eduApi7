@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\Route;
 
 Route::post('/auth/registration', 'AuthController@register');
 Route::any('/auth/login', 'AuthController@login');
+Route::any('/auth/userVerification', 'AuthController@userVerification');
 
 Route::middleware('auth:sanctum')->get('/auth/user', function (Request $request) {
     return \App\User::with(['roles', 'groups'])->find($request->user()->id);

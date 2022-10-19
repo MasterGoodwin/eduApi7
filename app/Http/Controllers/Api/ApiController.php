@@ -68,7 +68,7 @@ class ApiController extends Controller
     public function getUsers(Request $request)
     {
         $users = DB::table('users')->select(['users.id', 'cityId', 'status', 'name', 'email', 'username1c',])
-            ->leftJoin('group_users', 'users.id', '=', 'group_users.user_id');
+            ->leftJoin('group_users', 'users.id', '=', 'group_users.user_id')->where('status', '!=', 99);
         if (!empty($request['search'])) {
             $users = $users->where('name', 'like', '%' . $request['search'] . '%')
                 ->orWhere('name', 'like', '%' . $request['search'] . '%')
