@@ -155,7 +155,7 @@ class AuthController extends Controller
 
     private static function sendUserModerationMail($user) {
         try {
-            Mail::to('kudlaev@wlbs.ru')->send(new UserModeration($user));
+            Mail::to('anf@wlbs.ru')->send(new UserModeration($user));
         } catch (\Exception $e) {
             Log::error($e->getMessage());
         }
