@@ -1043,7 +1043,7 @@ class ApiController extends Controller
     public function getGroupStatistic(Request $request)
     {
         $users = User::whereIn('id', DB::table('group_users')
-                ->where('group_id', $request->id)->pluck('user_id'))->get();
+            ->where('group_id', $request->id)->pluck('user_id'))->get();
 
         $groupLessons = [];
         $stat = [];
@@ -1065,12 +1065,13 @@ class ApiController extends Controller
                     ->get();
 
                 foreach ($lessons as $lesson) {
+                    $user_stat = DB::table('user_stat')->where('user_id', $user->id)->where('lesson_id', $lesson->id)->first();
                     $userLessonStat = [
                         'user' => $user,
-                        'complete' => false,
-                        'pass' => false,
-                        'date' => null,
-                        'score' => 0,
+                        'complete' => (bool)$user_stat,
+                        'pass' => $user_stat && $user_stat->complete,
+                        'date' => $user_stat ? Carbon::createFromFormat('Y-m-d H:i:s', $user_stat->created_at)->format('d.m.Y') : null,
+                        'score' => $user_stat ? $user_stat->score : 0,
                         'try' => null
                     ];
                     $lesson->course = $course->name;
@@ -1079,7 +1080,6 @@ class ApiController extends Controller
                         $groupLessons[] = $lesson;
                         $gKey = count($groupLessons) - 1;
                     }
-//                    if (!array_key_exists($lesson->id, $groupLessons)) $groupLessons[$lesson->id] = $lesson;
 
                     if (!array_key_exists($lesson->id, $scores)) $scores[$lesson->id] = [];
 
@@ -1095,84 +1095,18 @@ class ApiController extends Controller
                         $sKey = count($stat) - 1;
                     }
 
-//                    if (!array_key_exists($lesson->id, $stat)) $stat[$lesson->id] = [
-//                        'complete' => 0,
-//                        'pass' => 0,
-//                        'score' => 0
-//                    ];
-                    $complete = true;
-                    $questions = DB::table('questions')->where('lesson_id', $lesson->id)->get();
-                    if (!count($questions)) $complete = false;
-                    $right_answers = 0;
-                    foreach ($questions as $question) {
-                        $user_answers = DB::table('user_answers')
-                            ->where('user_id', $user->id)
-                            ->where('question_id', $question->id)->get();
-                        if (!count($user_answers)) {
-                            $complete = false;
-                        } else {
-                            $userLessonStat['date'] = Carbon::createFromFormat('Y-m-d H:i:s', $user_answers[0]->created_at)->format('d.m.Y');
-                        }
-
-                        if ($question->type === 1) {
-                            $user_answer = DB::table('user_answers')
-                                ->where('user_id', $user->id)
-                                ->where('question_id', $question->id)->value('answer_id');
-                            if (DB::table('answers')
-                                    ->where('id', $user_answer)->value('right') === 1) $right_answers++;
-                        }
-
-                        if ($question->type === 2) {
-                            $right = true;
-                            $user_answer = DB::table('user_answers')
-                                ->where('user_id', $user->id)
-                                ->where('question_id', $question->id)->get();
-                            $question_right_answer = DB::table('answers')
-                                ->where('question_id', $question->id)
-                                ->where('right', 1)->get();
-                            if (count($user_answer) !== count($question_right_answer)) $right = false;
-                            foreach ($user_answer as $item) {
-                                if (DB::table('answers')
-                                        ->where('id', $item->answer_id)->first()->right === 0) $right = false;
-
-                            }
-                            if ($right) $right_answers++;
-                        }
-
-                        if ($question->type === 3) {
-                            $user_answer = DB::table('user_answers')
-                                ->where('user_id', $user->id)
-                                ->where('question_id', $question->id)->value('answer');
-                            if (!empty($user_answer)) $right_answers++;
-                        }
-                    }
-                    if ($complete) {
+                    if ($user_stat) {
                         $stat[$sKey]['complete']++;
-                        $userLessonStat['complete'] = true;
-                    }
 
-                    if ($course->type === 2) {
-                        if ($complete) {
-                            $score = $right_answers / count($questions) * 100;
-                            $scores[$lesson->id][] = $score;
-                            $userLessonStat['score'] = round($score);
-                            if ($score >= $course->score) {
+                        if ($course->type === 2) {
+                            $scores[$lesson->id][] = $user_stat->score;
+                            if ($user_stat->complete) {
                                 $stat[$sKey]['pass']++;
-                                $userLessonStat['pass'] = true;
                             }
+
                         }
                     }
                     $stat[$sKey]['users'][] = $userLessonStat;
-
-                    if ($userLessonStat['complete']) {
-                        DB::table('user_stat')->updateOrInsert([
-                            'user_id' => $user->id, 'lesson_id' => $lesson->id
-                        ], [
-                            'score' => $userLessonStat['score'], 'right' => $right_answers, 'total' => count($questions), 'complete' => $userLessonStat['pass'],
-                            'updated_at' => Carbon::now(),
-                            'created_at' => Carbon::now(),
-                        ]);
-                    }
                 }
             }
         }
@@ -1185,7 +1119,7 @@ class ApiController extends Controller
             }
         }
 
-        return response()->json(['lessons' => (array) $groupLessons, 'stat' => (array) $stat, 'usersCount' => count($users)]);
+        return response()->json(['lessons' => (array)$groupLessons, 'stat' => (array)$stat, 'usersCount' => count($users)]);
     }
 
     public function getGroupStatisticXLS(Request $request, Excel $excel)
