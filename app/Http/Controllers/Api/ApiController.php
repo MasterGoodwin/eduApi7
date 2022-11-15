@@ -672,7 +672,7 @@ class ApiController extends Controller
                     ->where('question_id', $question->id)->value('answer');
                 }
             } else {
-                $complete = false; 
+                $complete = false;
             }
         }
 
@@ -892,6 +892,70 @@ class ApiController extends Controller
             ]);
         }
 
+        $complete = true;
+        $questions = DB::table('questions')->where('lesson_id', $request->lesson_id)->get();
+        if (!count($questions)) $complete = false;
+        $right_answers = 0;
+        foreach ($questions as $question) {
+            $user_answers = DB::table('user_answers')
+                ->where('user_id', $request->user()->id)
+                ->where('question_id', $question->id)->get();
+            if (!count($user_answers)) $complete = false;
+            $question->user_answers = $user_answers;
+
+            if ($question->type === 1) {
+                $user_answer = DB::table('user_answers')
+                    ->where('user_id', $request->user()->id)
+                    ->where('question_id', $question->id)->value('answer_id');
+                if (DB::table('answers')
+                        ->where('id', $user_answer)->value('right') === 1) $right_answers++;
+            }
+
+            if ($question->type === 2) {
+                $right = true;
+                $user_answer = DB::table('user_answers')
+                    ->where('user_id', $request->user()->id)
+                    ->where('question_id', $question->id)->get();
+                $question_right_answer = DB::table('answers')
+                    ->where('question_id', $question->id)
+                    ->where('right', 1)->get();
+                if (count($user_answer) !== count($question_right_answer)) $right = false;
+                foreach ($user_answer as $item) {
+                    if (DB::table('answers')
+                            ->where('id', $item->answer_id)->first()->right === 0) $right = false;
+
+                }
+                if ($right) $right_answers++;
+            }
+
+            if ($question->type === 3) {
+                $user_answer = DB::table('user_answers')
+                    ->where('user_id', $request->user()->id)
+                    ->where('question_id', $question->id)->value('answer');
+                if (!empty($user_answer)) $right_answers++;
+            }
+        }
+        if ($complete) {
+            $score = $right_answers / count($questions) * 100;
+            $right = $right_answers;
+            $total = count($questions);
+            $completeRight = null;
+            $course = DB::table('courses')->where('id',
+                DB::table('course_lessons')->where('lesson_id', $request->lesson_id)->value('course_id')
+            )->first();
+            if ($course->type === 2) {
+                $completeRight = $score >= $course->score;
+            }
+            DB::table('user_stat')->updateOrInsert([
+                'user_id' => $request->user()->id, 'lesson_id' => $request->lesson_id
+            ], [
+                'score' => $score, 'right' => $right, 'total' => $total, 'complete' => $completeRight,
+                'updated_at' => Carbon::now(),
+                'created_at' => Carbon::now(),
+            ]);
+        }
+
+
         return response()->json($request->user()->id);
     }
 
@@ -1099,6 +1163,16 @@ class ApiController extends Controller
                         }
                     }
                     $stat[$sKey]['users'][] = $userLessonStat;
+
+                    if ($userLessonStat['complete']) {
+                        DB::table('user_stat')->updateOrInsert([
+                            'user_id' => $user->id, 'lesson_id' => $lesson->id
+                        ], [
+                            'score' => $userLessonStat['score'], 'right' => $right_answers, 'total' => count($questions), 'complete' => $userLessonStat['pass'],
+                            'updated_at' => Carbon::now(),
+                            'created_at' => Carbon::now(),
+                        ]);
+                    }
                 }
             }
         }
