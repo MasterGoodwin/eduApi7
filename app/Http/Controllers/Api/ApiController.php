@@ -1151,4 +1151,17 @@ class ApiController extends Controller
         return $excel::download($export, 'stat.xlsx');
     }
 
+    public function addUser(Request $request)
+    {
+        $pass = rand(0, 9) . rand(0, 9) . rand(0, 9) . rand(0, 9) . rand(0, 9) . rand(0, 9);
+        while (DB::table('users')->where('password', $pass)->exists()) {
+            $pass = rand(0, 9) . rand(0, 9) . rand(0, 9) . rand(0, 9) . rand(0, 9) . rand(0, 9);
+        }
+        DB::table('users')->updateOrInsert(['cid' => $request->id], [
+            'name' => $request->name,
+            'welcome_test_id' => $request->testId,
+        ]);
+        return response()->json($pass);
+    }
+
 }

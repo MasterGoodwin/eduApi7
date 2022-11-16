@@ -27,6 +27,7 @@ Route::middleware('auth:sanctum')->group(function () {
 });
 Route::namespace('Api')->group(function () {
     Route::any('/getCities', 'ApiController@getCities');
+    Route::post('/addUser', 'ApiController@addUser');
     Route::any('/getUserGroups', 'ApiController@getUserGroups');
     Route::any('/uploadCKEditorImage',  'ApiController@uploadCKEditorImage');
 
