@@ -140,8 +140,8 @@ class AuthController extends Controller
         if ($request->type === 'interview') {
             $user = User::where('password', $request->password)->whereNotNull('welcome_test_id')->first();
             if ($user) {
-                $user->password = 'record-inactivated-password';
-                $user->save();
+//                $user->password = 'record-inactivated-password';
+//                $user->save();
                 return response()->json(['token' => $user->createToken('edu', $tokenCan)->plainTextToken]);
             } else {
                 return response()->json([
