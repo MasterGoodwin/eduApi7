@@ -1157,7 +1157,8 @@ class ApiController extends Controller
         while (DB::table('users')->where('password', $pass)->exists()) {
             $pass = rand(0, 9) . rand(0, 9) . rand(0, 9) . rand(0, 9) . rand(0, 9) . rand(0, 9);
         }
-        DB::table('users')->updateOrInsert(['cid' => $request->id], [
+        DB::table('users')->insert([
+            'cid' => $request->id,
             'password' => $pass,
             'name' => $request->name,
             'welcome_test_id' => $request->testId,
