@@ -44,10 +44,14 @@ class AuthController extends Controller
 
     public function login(Request $request): JsonResponse
     {
-        $request->validate([
-            'username' => 'required',
-            'password' => 'required',
-        ]);
+        if ($request->type === 'interview') {
+            $request->validate(['password' => 'required']);
+        } else {
+            $request->validate([
+                'username' => 'required',
+                'password' => 'required',
+            ]);
+        }
         $tokenCan = [];
         $tokenCan[] = 'user';
 
@@ -131,6 +135,20 @@ class AuthController extends Controller
                 Log::error($e->getMessage());
             }
 
+        }
+
+        if ($request->type === 'interview') {
+            $user = User::where('password', $request->password)->whereNotNull('welcome_test_id')->first();
+            if ($user) {
+                $user->password = 'record-inactivated-password';
+//                $user->save();
+                return response()->json(['token' => $user->createToken('edu', $tokenCan)->plainTextToken]);
+            } else {
+                return response()->json([
+                    'result' => false,
+                    'message' => 'Не верный пароль'
+                ], 401);
+            }
         }
 
         // todo: авторизация 1с пользователей

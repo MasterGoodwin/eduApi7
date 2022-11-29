@@ -1158,6 +1158,7 @@ class ApiController extends Controller
             $pass = rand(0, 9) . rand(0, 9) . rand(0, 9) . rand(0, 9) . rand(0, 9) . rand(0, 9);
         }
         DB::table('users')->updateOrInsert(['cid' => $request->id], [
+            'password' => $pass,
             'name' => $request->name,
             'welcome_test_id' => $request->testId,
         ]);
