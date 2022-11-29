@@ -32,10 +32,10 @@ class ApiController extends Controller
     public function getUserGroups(Request $request)
     {
         $search = $request['search'];
-        $groups = Group::when($search, function($query, $search) {
+        $groups = Group::when($search, function ($query, $search) {
             $query->where('name', 'like', '%' . $search . '%');
         })
-        ->get();
+            ->get();
         return response()->json($groups);
     }
 
@@ -105,10 +105,10 @@ class ApiController extends Controller
                     'lessons.*',
                     'user_attempts.current_count as current_attempt_count',
                     'user_attempts.total_count as total_attempt_count'
-                    ])
-                ->leftJoin('user_attempts', function($leftJoin) use ($request) {
+                ])
+                ->leftJoin('user_attempts', function ($leftJoin) use ($request) {
                     $leftJoin->on('user_attempts.lesson_id', '=', 'lessons.id')
-                    ->where('user_attempts.user_id', '=', $request->id);
+                        ->where('user_attempts.user_id', '=', $request->id);
                 })
                 ->whereIn('lessons.id',
                     DB::table('course_lessons')
@@ -189,7 +189,8 @@ class ApiController extends Controller
         return response()->json($user);
     }
 
-    public function deleteUser(Request $request) {
+    public function deleteUser(Request $request)
+    {
         $isAdmin = DB::table('user_roles')
             ->where('user_id', $request->user()->id)
             ->where('role_id', 9)->exists();
@@ -205,14 +206,14 @@ class ApiController extends Controller
             ->where('user_id', $request->user()->id)
             ->where('role_id', 9)->exists();
         $userId = $isAdmin ? $request['user_id'] : $request->user()->id;
-        if($userId) {
+        if ($userId) {
             $questions = Question::where('lesson_id', $request['lesson_id'])->pluck('id');
             UserAnswer::where('user_id', $userId)->whereIn('question_id', $questions)->delete();
-            if($isAdmin && $request['clear_attempt'] === true) {
+            if ($isAdmin && $request['clear_attempt'] === true) {
                 DB::table('user_attempts')
-                ->where('lesson_id', $request['lesson_id'])
-                ->where('user_id', $request['user_id'])
-                ->update(['current_count' => 0]);
+                    ->where('lesson_id', $request['lesson_id'])
+                    ->where('user_id', $request['user_id'])
+                    ->update(['current_count' => 0]);
             }
             return response()->json('ok');
         }
@@ -255,10 +256,10 @@ class ApiController extends Controller
     public function getCategories(Request $request)
     {
         $search = $request['search'];
-        $categories = Category::when($search, function($query, $search) {
+        $categories = Category::when($search, function ($query, $search) {
             $query->where('name', 'like', '%' . $search . '%');
         })
-        ->get();
+            ->get();
         return response()->json($categories);
     }
 
@@ -300,13 +301,13 @@ class ApiController extends Controller
         if ($isAdmin) {
 
             $courses = Course::where('category_id', $request['category_id'])
-            ->when($search, function($query, $search) {
-                $query->where('name', 'like', '%' . $search . '%');
-            })->get();
+                ->when($search, function ($query, $search) {
+                    $query->where('name', 'like', '%' . $search . '%');
+                })->get();
         } else {
             $courses = Course::where('category_id', $request['category_id'])
                 ->whereIn('id', $userCourses)
-                ->when($search, function($query, $search) {
+                ->when($search, function ($query, $search) {
                     $query->where('name', 'like', '%' . $search . '%');
                 })
                 ->get();
@@ -404,12 +405,12 @@ class ApiController extends Controller
                 'user_attempts.current_count as attempt_count'
             ])
             ->leftJoin('course_lessons', 'course_lessons.lesson_id', '=', 'lessons.id')
-            ->leftJoin('user_attempts', function($leftJoin) use ($request) {
+            ->leftJoin('user_attempts', function ($leftJoin) use ($request) {
                 $leftJoin->on('user_attempts.lesson_id', '=', 'lessons.id')
-                ->where('user_attempts.user_id', '=', $request->user()->id);
+                    ->where('user_attempts.user_id', '=', $request->user()->id);
             })
             ->where('course_lessons.course_id', $request['course_id'])
-            ->when($search, function($query, $search) {
+            ->when($search, function ($query, $search) {
                 $query->where('name', 'like', '%' . $search . '%');
             })
             ->get();
@@ -660,16 +661,16 @@ class ApiController extends Controller
             if (count($user_answers)) {
                 if ($question->type === 1) {
                     $question->user_answer = DB::table('user_answers')
-                    ->where('user_id', $request['user_id'])
-                    ->where('question_id', $question->id)->value('answer_id');
+                        ->where('user_id', $request['user_id'])
+                        ->where('question_id', $question->id)->value('answer_id');
                 } else if ($question->type === 2) {
                     $question->user_answer = DB::table('user_answers')
-                    ->where('user_id', $request['user_id'])
-                    ->where('question_id', $question->id)->pluck('answer_id');
+                        ->where('user_id', $request['user_id'])
+                        ->where('question_id', $question->id)->pluck('answer_id');
                 } else if ($question->type === 3) {
                     $question->user_answer = DB::table('user_answers')
-                    ->where('user_id', $request['user_id'])
-                    ->where('question_id', $question->id)->value('answer');
+                        ->where('user_id', $request['user_id'])
+                        ->where('question_id', $question->id)->value('answer');
                 }
             } else {
                 $complete = false;
@@ -803,7 +804,7 @@ class ApiController extends Controller
                             'right' => $answer['right'],
                         ]);
 
-                    } elseif(!$answer['delete'] && !$question['delete']) {
+                    } elseif (!$answer['delete'] && !$question['delete']) {
                         DB::table('answers')->insert([
                             'question_id' => $questionId,
                             'order' => $k,
@@ -868,28 +869,28 @@ class ApiController extends Controller
         }
 
         $lessonAttempt = DB::table('user_attempts')
-        ->where('user_id', $request->user()->id)
-        ->where('lesson_id', $request->lesson_id)->first();
-
-        if(isset($lessonAttempt)) {
-            DB::table('user_attempts')
             ->where('user_id', $request->user()->id)
-            ->where('lesson_id', $request->lesson_id)
-            ->update([
-                'current_count' => ++$lessonAttempt->current_count,
-                'total_count' => ++$lessonAttempt->total_count,
-                'updated_at' => Carbon::now()
-            ]);
+            ->where('lesson_id', $request->lesson_id)->first();
+
+        if (isset($lessonAttempt)) {
+            DB::table('user_attempts')
+                ->where('user_id', $request->user()->id)
+                ->where('lesson_id', $request->lesson_id)
+                ->update([
+                    'current_count' => ++$lessonAttempt->current_count,
+                    'total_count' => ++$lessonAttempt->total_count,
+                    'updated_at' => Carbon::now()
+                ]);
         } else {
             DB::table('user_attempts')
-            ->insert([
-                'user_id' => $request->user()->id,
-                'lesson_id' => $request->lesson_id,
-                'current_count' => 1,
-                'total_count' => 1,
-                'updated_at' => Carbon::now(),
-                'created_at' => Carbon::now(),
-            ]);
+                ->insert([
+                    'user_id' => $request->user()->id,
+                    'lesson_id' => $request->lesson_id,
+                    'current_count' => 1,
+                    'total_count' => 1,
+                    'updated_at' => Carbon::now(),
+                    'created_at' => Carbon::now(),
+                ]);
         }
 
         $complete = true;
@@ -1158,12 +1159,12 @@ class ApiController extends Controller
             $pass = rand(0, 9) . rand(0, 9) . rand(0, 9) . rand(0, 9) . rand(0, 9) . rand(0, 9);
         }
         $input = json_decode($request->getContent());
-        DB::table('users')->insert([
-            'cid' => $input->id,
-            'password' => $pass,
-            'name' => $input->name,
-            'welcome_test_id' => $input->testId,
-        ]);
+        DB::table('users')->updateOrInsert(['cid' => $input->id],
+            [
+                'password' => $pass,
+                'name' => $input->name,
+                'welcome_test_id' => $input->testId,
+            ]);
         return response()->json($pass);
     }
 
