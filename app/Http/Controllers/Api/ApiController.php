@@ -909,7 +909,12 @@ class ApiController extends Controller
                     ->where('user_id', $request->user()->id)
                     ->where('question_id', $question->id)->value('answer_id');
                 if (DB::table('answers')
-                        ->where('id', $user_answer)->value('right') === 1) $right_answers++;
+                        ->where('id', $user_answer)->value('right') === 1) {
+                    $right_answers++;
+                    $question->right = 1;
+                } else {
+                    $question->right = 0;
+                }
             }
 
             if ($question->type === 2) {
@@ -926,14 +931,22 @@ class ApiController extends Controller
                             ->where('id', $item->answer_id)->first()->right === 0) $right = false;
 
                 }
-                if ($right) $right_answers++;
+                if ($right) {
+                    $right_answers++;
+                    $question->right = 1;
+                } else {
+                    $question->right = 0;
+                }
             }
 
             if ($question->type === 3) {
                 $user_answer = DB::table('user_answers')
                     ->where('user_id', $request->user()->id)
                     ->where('question_id', $question->id)->value('answer');
-                if (!empty($user_answer)) $right_answers++;
+                if (!empty($user_answer)) {
+                    $right_answers++;
+                    $question->right = 1;
+                }
             }
         }
         if ($complete) {
@@ -954,6 +967,27 @@ class ApiController extends Controller
                 'updated_at' => Carbon::now(),
                 'created_at' => Carbon::now(),
             ]);
+            if ($request->user()->welcome_test_id) {
+                $userStat = DB::table('user_stat')->where([
+                    'user_id' => $request->user()->id, 'lesson_id' => $request->lesson_id
+                ])->get();
+
+                try {
+                    $ch = curl_init('http://mx.wlbs.ru/upr_mcm/hs/API/test_result/');
+                    curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "POST");
+                    curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type: text/plain'));
+                    curl_setopt($ch, CURLOPT_HTTPAUTH, CURLAUTH_BASIC);
+                    curl_setopt($ch, CURLOPT_USERPWD,  "change1c:changius");
+                    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($userStat));
+                    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                    $res['out'] = curl_exec($ch);
+                    $res['code'] = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                    curl_close($ch);
+                } catch (\Exception $e) {
+                    Log::error($e->getMessage());
+                }
+
+            }
         }
 
 
