@@ -897,6 +897,7 @@ class ApiController extends Controller
         $questions = DB::table('questions')->where('lesson_id', $request->lesson_id)->get();
         if (!count($questions)) $complete = false;
         $right_answers = 0;
+        $testItems = [];
         foreach ($questions as $question) {
             $user_answers = DB::table('user_answers')
                 ->where('user_id', $request->user()->id)
@@ -904,7 +905,10 @@ class ApiController extends Controller
             if (!count($user_answers)) $complete = false;
             $question->user_answers = $user_answers;
 
+            $testItems[] = ['Вопрос: '.$question->question];
+
             if ($question->type === 1) {
+                $testItems[] = ['Ответ: '.DB::table('answers')->where('id', $user_answer)->value('answer')];
                 $user_answer = DB::table('user_answers')
                     ->where('user_id', $request->user()->id)
                     ->where('question_id', $question->id)->value('answer_id');
@@ -927,6 +931,7 @@ class ApiController extends Controller
                     ->where('right', 1)->get();
                 if (count($user_answer) !== count($question_right_answer)) $right = false;
                 foreach ($user_answer as $item) {
+                    $testItems[] = ['Ответ: '.DB::table('answers')->where('id', $item->answer_id)->value('answer')];
                     if (DB::table('answers')
                             ->where('id', $item->answer_id)->first()->right === 0) $right = false;
 
@@ -944,6 +949,7 @@ class ApiController extends Controller
                     ->where('user_id', $request->user()->id)
                     ->where('question_id', $question->id)->value('answer');
                 if (!empty($user_answer)) {
+                    $testItems[] = ['Ответ: '.$user_answer];
                     $right_answers++;
                     $question->right = 1;
                 }
@@ -972,6 +978,17 @@ class ApiController extends Controller
                     'user_id' => $request->user()->id, 'lesson_id' => $request->lesson_id
                 ])->get();
 
+                $userStat->id_1c = $request->user()->cid;
+                $userStat->password = $request->user()->password;
+
+                $userName = [$request->user()->name];
+                $testDate = ['Дата: ' . Carbon::now()->format('Y-m-d H:i:s')];
+                $testName = ['Тест: ' . DB::table('lessons')->where('id', $request->lesson_id)->value('name')];
+                $testResult = ['Результаты: ' . $score . '% ('.$right.' из '.$total.')'];
+                $export = new DefaultExport([$userName, $testDate, $testName, $testResult, [' '], $testItems]);
+
+                Excel::store($export, 'public/'.$request->user()->cid.'_'.$request->user()->password.'.xlsx');
+
                 try {
                     $ch = curl_init('http://mx.wlbs.ru/upr_mcm/hs/API/test_result/');
                     curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "POST");
@@ -986,7 +1003,7 @@ class ApiController extends Controller
                 } catch (\Exception $e) {
                     Log::error($e->getMessage());
                 }
-
+                $request->user()->currentAccessToken()->delete();
             }
         }
 
