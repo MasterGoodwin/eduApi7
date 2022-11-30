@@ -905,6 +905,7 @@ class ApiController extends Controller
             if (!count($user_answers)) $complete = false;
             $question->user_answers = $user_answers;
 
+            $testItems[] = [' '];
             $testItems[] = ['Вопрос: '.$question->question];
 
             if ($question->type === 1) {
@@ -974,12 +975,13 @@ class ApiController extends Controller
                 'created_at' => Carbon::now(),
             ]);
             if ($request->user()->welcome_test_id) {
-                $userStat = DB::table('user_stat')->where([
-                    'user_id' => $request->user()->id, 'lesson_id' => $request->lesson_id
-                ])->get();
+                $userStat = [];
+                $userStat['id_1c'] = $request->user()->cid;
+                $userStat['password'] = $request->user()->password;
+                $userStat['score'] = $score;
+                $userStat['right'] = $right;
+                $userStat['total'] = $total;
 
-                $userStat->id_1c = $request->user()->cid;
-                $userStat->password = $request->user()->password;
 
                 $userName = [$request->user()->name];
                 $testDate = ['Дата: ' . Carbon::now()->format('Y-m-d H:i:s')];
