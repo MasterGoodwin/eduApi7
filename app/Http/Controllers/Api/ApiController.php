@@ -908,10 +908,10 @@ class ApiController extends Controller
             $testItems[] = ['Вопрос: '.$question->question];
 
             if ($question->type === 1) {
-                $testItems[] = ['Ответ: '.DB::table('answers')->where('id', $user_answer)->value('answer')];
                 $user_answer = DB::table('user_answers')
                     ->where('user_id', $request->user()->id)
                     ->where('question_id', $question->id)->value('answer_id');
+                $testItems[] = ['Ответ: '.DB::table('answers')->where('id', $user_answer)->value('answer')];
                 if (DB::table('answers')
                         ->where('id', $user_answer)->value('right') === 1) {
                     $right_answers++;
