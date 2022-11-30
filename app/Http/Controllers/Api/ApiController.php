@@ -981,6 +981,7 @@ class ApiController extends Controller
                 $userStat['score'] = $score;
                 $userStat['right'] = $right;
                 $userStat['total'] = $total;
+                $userStat['complete'] = (int) $completeRight;
 
 
                 $userName = [$request->user()->name];
