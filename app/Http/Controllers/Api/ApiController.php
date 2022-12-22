@@ -68,7 +68,9 @@ class ApiController extends Controller
     public function getUsers(Request $request)
     {
         $users = DB::table('users')->select(['users.id', 'cityId', 'status', 'name', 'email', 'username1c',])
-            ->leftJoin('group_users', 'users.id', '=', 'group_users.user_id')->where('status', '!=', 99);
+            ->leftJoin('group_users', 'users.id', '=', 'group_users.user_id')
+            ->whereNull('welcome_test_id')
+            ->where('status', '!=', 99);
         if (!empty($request['search'])) {
             $users = $users->where('name', 'like', '%' . $request['search'] . '%')
                 ->orWhere('name', 'like', '%' . $request['search'] . '%')
@@ -906,13 +908,13 @@ class ApiController extends Controller
             $question->user_answers = $user_answers;
 
             $testItems[] = [' '];
-            $testItems[] = ['Вопрос: '.$question->question];
+            $testItems[] = ['Вопрос: ' . $question->question];
 
             if ($question->type === 1) {
                 $user_answer = DB::table('user_answers')
                     ->where('user_id', $request->user()->id)
                     ->where('question_id', $question->id)->value('answer_id');
-                $testItems[] = ['Ответ: '.DB::table('answers')->where('id', $user_answer)->value('answer')];
+                $testItems[] = ['Ответ: ' . DB::table('answers')->where('id', $user_answer)->value('answer')];
                 if (DB::table('answers')
                         ->where('id', $user_answer)->value('right') === 1) {
                     $right_answers++;
@@ -932,7 +934,7 @@ class ApiController extends Controller
                     ->where('right', 1)->get();
                 if (count($user_answer) !== count($question_right_answer)) $right = false;
                 foreach ($user_answer as $item) {
-                    $testItems[] = ['Ответ: '.DB::table('answers')->where('id', $item->answer_id)->value('answer')];
+                    $testItems[] = ['Ответ: ' . DB::table('answers')->where('id', $item->answer_id)->value('answer')];
                     if (DB::table('answers')
                             ->where('id', $item->answer_id)->first()->right === 0) $right = false;
 
@@ -950,7 +952,7 @@ class ApiController extends Controller
                     ->where('user_id', $request->user()->id)
                     ->where('question_id', $question->id)->value('answer');
                 if (!empty($user_answer)) {
-                    $testItems[] = ['Ответ: '.$user_answer];
+                    $testItems[] = ['Ответ: ' . $user_answer];
                     $right_answers++;
                     $question->right = 1;
                 }
@@ -981,23 +983,23 @@ class ApiController extends Controller
                 $userStat['score'] = $score;
                 $userStat['right'] = $right;
                 $userStat['total'] = $total;
-                $userStat['complete'] = (int) $completeRight;
+                $userStat['complete'] = (int)$completeRight;
 
 
                 $userName = [$request->user()->name];
                 $testDate = ['Дата: ' . Carbon::now()->format('Y-m-d H:i:s')];
                 $testName = ['Тест: ' . DB::table('lessons')->where('id', $request->lesson_id)->value('name')];
-                $testResult = ['Результаты: ' . $score . '% ('.$right.' из '.$total.')'];
+                $testResult = ['Результаты: ' . $score . '% (' . $right . ' из ' . $total . ')'];
                 $export = new DefaultExport([$userName, $testDate, $testName, $testResult, [' '], $testItems]);
 
-                Excel::store($export, 'public/'.$request->user()->cid.'_'.$request->user()->password.'.xlsx');
+                Excel::store($export, 'public/' . $request->user()->cid . '_' . $request->user()->password . '.xlsx');
 
                 try {
                     $ch = curl_init('http://mx.wlbs.ru/upr_mcm/hs/API/test_result/');
                     curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "POST");
                     curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type: text/plain'));
                     curl_setopt($ch, CURLOPT_HTTPAUTH, CURLAUTH_BASIC);
-                    curl_setopt($ch, CURLOPT_USERPWD,  "change1c:changius");
+                    curl_setopt($ch, CURLOPT_USERPWD, "change1c:changius");
                     curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($userStat));
                     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
                     $res['out'] = curl_exec($ch);
@@ -1007,6 +1009,11 @@ class ApiController extends Controller
                     Log::error($e->getMessage());
                 }
                 $request->user()->currentAccessToken()->delete();
+                $user = User::where('id', $request->user()->id)->first();
+                if ($user) {
+                    $user->password = 'record-inactivated-password';
+                    $user->save();
+                }
             }
         }
 
