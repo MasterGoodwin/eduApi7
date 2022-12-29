@@ -206,7 +206,7 @@ class ApiController extends Controller
     {
         $isAdmin = DB::table('user_roles')
             ->where('user_id', $request->user()->id)
-            ->where('role_id', 9)->exists();
+            ->where('role_id', [2,9])->exists();
         $userId = $isAdmin ? $request['user_id'] : $request->user()->id;
         if ($userId) {
             $questions = Question::where('lesson_id', $request['lesson_id'])->pluck('id');
@@ -421,7 +421,7 @@ class ApiController extends Controller
         $search = $request['search'];
         $isAdmin = DB::table('user_roles')
             ->where('user_id', $request->user()->id)
-            ->where('role_id', 9)->exists();
+            ->whereIn('role_id', [2,9])->exists();
 
         $course = DB::table('courses')->where('id', $request['course_id'])->first();
 
