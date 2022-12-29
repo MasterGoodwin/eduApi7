@@ -298,7 +298,7 @@ class ApiController extends Controller
         $userCourses = DB::table('course_groups')->whereIn('group_id', $userGroups)->pluck('course_id');
         $isAdmin = DB::table('user_roles')
             ->where('user_id', $request->user()->id)
-            ->where('role_id', 9)->exists();
+            ->whereIn('role_id', [ 2, 9 ])->exists();
 
         if ($isAdmin) {
 
@@ -306,6 +306,11 @@ class ApiController extends Controller
                 ->when($search, function ($query, $search) {
                     $query->where('name', 'like', '%' . $search . '%');
                 })->get();
+
+            foreach($courses as $course) {
+                $teachers = User::join('course_teachers', 'course_teachers.user_id', 'users.id')->where('course_id', $course['id'])->get('id');
+                $course->teachers = $teachers;
+            }
         } else {
             $courses = Course::where('category_id', $request['category_id'])
                 ->whereIn('id', $userCourses)
@@ -334,29 +339,37 @@ class ApiController extends Controller
 
     public function getCourse(Request $request)
     {
-        $course = Course::where('id', $request['id'])->with('groups')->first();
+        $course = Course::where('id', $request['id'])->with('groups', 'teachers')->first();
         return response()->json($course);
     }
 
     public function addCourse(Request $request)
     {
-        $course = Course::create([
-            'name' => $request['name'],
-            'category_id' => $request['category_id'],
-            'type' => $request['type'],
-            'score' => $request['type'] === 2 ? $request['score'] : 0,
-            'attempt' => $request['type'] === 2 ? $request['attempt'] : null,
-            'created_at' => Carbon::now(),
-            'shuffle' => $request['shuffle']
-        ]);
-
-        foreach ($request['groups'] as $item) {
-            DB::table('course_groups')->insert([
-                'course_id' => $course->id,
-                'group_id' => $item['id']
+        DB::transaction(function () use ($request) {
+            $course = Course::create([
+                'name' => $request['name'],
+                'category_id' => $request['category_id'],
+                'type' => $request['type'],
+                'score' => $request['type'] === 2 ? $request['score'] : 0,
+                'attempt' => $request['type'] === 2 ? $request['attempt'] : null,
+                'created_at' => Carbon::now(),
+                'shuffle' => $request['shuffle']
             ]);
-        }
 
+            foreach ($request['groups'] as $item) {
+                DB::table('course_groups')->insert([
+                    'course_id' => $course->id,
+                    'group_id' => $item['id']
+                ]);
+            }
+
+            foreach ($request['teachers'] as $item) {
+                DB::table('course_teachers')->insert([
+                    'course_id' => $course->id,
+                    'user_id' => $item['id']
+                ]);
+            }
+        });
 
         return response()->json('ok');
     }
@@ -380,6 +393,14 @@ class ApiController extends Controller
             ]);
         }
 
+        DB::table('course_teachers')->where('course_id', $request['id'])->delete();
+        foreach ($request['teachers'] as $item) {
+            DB::table('course_teachers')->insert([
+                'course_id' => $request['id'],
+                'user_id' => $item['id']
+            ]);
+        }
+
         return response()->json('ok');
     }
 
@@ -387,6 +408,11 @@ class ApiController extends Controller
     {
         Course::where('id', $request['id'])->delete();
         return response()->json('ok');
+    }
+
+    public function getTeachers(Request $request) {
+        $users = User::select(['users.*', 'users.id as id'])->join('user_roles', 'users.id', 'user_roles.user_id')->where('role_id', 2)->get();
+        return response()->json($users);
     }
 
 
@@ -398,6 +424,8 @@ class ApiController extends Controller
             ->where('role_id', 9)->exists();
 
         $course = DB::table('courses')->where('id', $request['course_id'])->first();
+
+        $teachers = User::join('course_teachers', 'course_teachers.user_id', 'users.id')->where('course_id', $request['course_id'])->get('id');
 
         $lessons = DB::table('lessons')
             ->select([
@@ -508,6 +536,7 @@ class ApiController extends Controller
 //        }
         return response()->json([
             'lessons' => $isAdmin ? $lessons : $resultLessons,
+            'teachers' => $teachers,
             'lessons_count' => count($lessons),
             'category_id' => $course->category_id,
             'course_attempt_count' => $course->attempt,
@@ -768,56 +797,58 @@ class ApiController extends Controller
 
     public function postQuestions(Request $request)
     {
-        foreach ($request['questions'] as $i => $question) {
-            if (isset ($question['id'])) {
-                if ($question['delete']) {
-                    DB::table('questions')->where('id', $question['id'])->delete();
-                    DB::table('answers')->where('question_id', $question['id'])->delete();
+        DB::transaction(function () use ($request) {
+            foreach ($request['questions'] as $i => $question) {
+                if (isset ($question['id'])) {
+                    if ($question['delete']) {
+                        DB::table('questions')->where('id', $question['id'])->delete();
+                        DB::table('answers')->where('question_id', $question['id'])->delete();
+                    } else {
+                        $questionId = $question['id'];
+                        DB::table('questions')->where('id', $questionId)->update([
+                            'type' => $question['type'],
+                            'order' => $i,
+                            'question' => $question['question'],
+                            'updated_at' => Carbon::now(),
+                        ]);
+                    }
                 } else {
-                    $questionId = $question['id'];
-                    DB::table('questions')->where('id', $questionId)->update([
-                        'type' => $question['type'],
-                        'order' => $i,
-                        'question' => $question['question'],
-                        'updated_at' => Carbon::now(),
-                    ]);
-                }
-            } else {
-                if (!$question['delete']) {
-                    $questionId = DB::table('questions')->insertGetId([
-                        'lesson_id' => $request['lesson_id'],
-                        'type' => $question['type'],
-                        'order' => $i,
-                        'question' => $question['question'],
-                        'created_at' => Carbon::now(),
-                    ]);
-                }
-            }
-            if (isset($questionId)) {
-                foreach ($question['answers'] as $k => $answer) {
-                    if (isset ($answer['id']) && ($answer['delete']) === true) {
-                        DB::table('answers')->where('id', $answer['id'])->delete();
-                    }
-                    if (isset ($answer['id'])) {
-                        DB::table('answers')->where('id', $answer['id'])->update([
-                            'order' => $k,
-                            'answer' => $answer['answer'],
-                            'comment' => $answer['comment'],
-                            'right' => $answer['right'],
+                    if (!$question['delete']) {
+                        $questionId = DB::table('questions')->insertGetId([
+                            'lesson_id' => $request['lesson_id'],
+                            'type' => $question['type'],
+                            'order' => $i,
+                            'question' => $question['question'],
+                            'created_at' => Carbon::now(),
                         ]);
+                    }
+                }
+                if (isset($questionId)) {
+                    foreach ($question['answers'] as $k => $answer) {
+                        if (isset ($answer['id']) && ($answer['delete']) === true) {
+                            DB::table('answers')->where('id', $answer['id'])->delete();
+                        }
+                        if (isset ($answer['id'])) {
+                            DB::table('answers')->where('id', $answer['id'])->update([
+                                'order' => $k,
+                                'answer' => $answer['answer'],
+                                'comment' => $answer['comment'],
+                                'right' => $answer['right'],
+                            ]);
 
-                    } elseif (!$answer['delete'] && !$question['delete']) {
-                        DB::table('answers')->insert([
-                            'question_id' => $questionId,
-                            'order' => $k,
-                            'answer' => $answer['answer'],
-                            'comment' => $answer['comment'],
-                            'right' => $answer['right'],
-                        ]);
+                        } elseif (!$answer['delete'] && !$question['delete']) {
+                            DB::table('answers')->insert([
+                                'question_id' => $questionId,
+                                'order' => $k,
+                                'answer' => $answer['answer'],
+                                'comment' => $answer['comment'],
+                                'right' => $answer['right'],
+                            ]);
+                        }
                     }
                 }
             }
-        }
+        });
         return response()->json('ok');
     }
 
